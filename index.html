@@ -6,52 +6,21 @@
     <title>Loknet | AI Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        /* Force clean font */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #111827; /* Tailwind gray-900 */
-            color: #f3f4f6;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Clean scrollbar */
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #f3f4f6; margin: 0; height: 100vh; display: flex; flex-direction: column; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-
-        /* Modern Chat Bubbles */
-        .bot-bubble {
-            background-color: #1f2937; /* gray-800 */
-            border: 1px solid #374151;
-            border-radius: 16px 16px 16px 4px;
-        }
-        .user-bubble {
-            background-color: #2563eb; /* blue-600 */
-            color: white;
-            border-radius: 16px 16px 4px 16px;
-        }
-
-        /* Smooth Typing Animation */
-        .typing-dots span {
-            display: inline-block; width: 6px; height: 6px; 
-            background-color: #9ca3af; border-radius: 50%; margin: 0 2px;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
+        .bot-bubble { background-color: #1f2937; border: 1px solid #374151; border-radius: 16px 16px 16px 4px; }
+        .user-bubble { background-color: #2563eb; color: white; border-radius: 16px 16px 4px 16px; }
+        .typing-dots span { display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; margin: 0 2px; animation: bounce 1.4s infinite ease-in-out both; }
         .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
         .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-
-        /* Markdown formatting inside chat */
         .markdown-content p { margin-bottom: 0.5rem; line-height: 1.5; }
         .markdown-content p:last-child { margin-bottom: 0; }
         .markdown-content strong { color: #60a5fa; font-weight: 600; }
@@ -81,18 +50,32 @@
                 <i class="fa-solid fa-robot text-blue-400 text-[10px]"></i>
             </div>
             <div class="bot-bubble p-3.5 text-[15px] text-gray-200 max-w-[85%] shadow-sm">
-                Hello! I am Loknet. I am online and ready to help you.
+                Hello! I am Loknet. You can now send me text or upload images!
             </div>
         </div>
     </main>
 
-    <footer class="bg-[#1f2937] border-t border-gray-800 p-3 fixed bottom-0 w-full">
+    <div id="image-preview-container" class="hidden fixed bottom-[70px] w-full max-w-3xl mx-auto px-4 z-20">
+        <div class="bg-[#374151] p-2 rounded-lg inline-flex items-center gap-3 border border-gray-600">
+            <img id="preview-img" src="" class="h-12 w-12 object-cover rounded">
+            <span class="text-xs text-gray-300" id="preview-name">image.jpg</span>
+            <button id="remove-img-btn" class="text-red-400 hover:text-red-300 ml-2"><i class="fa-solid fa-times"></i></button>
+        </div>
+    </div>
+
+    <footer class="bg-[#1f2937] border-t border-gray-800 p-3 fixed bottom-0 w-full z-30">
         <div class="max-w-3xl mx-auto relative flex items-center gap-2">
+            
+            <label for="file-upload" class="cursor-pointer p-3 bg-[#374151] rounded-full text-gray-400 hover:text-blue-400 transition">
+                <i class="fa-solid fa-paperclip"></i>
+            </label>
+            <input id="file-upload" type="file" accept="image/*" class="hidden">
+
             <input type="text" id="user-input" 
                 class="flex-1 bg-[#374151] text-white text-[15px] rounded-full py-3 px-5 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400"
                 placeholder="Ask Loknet anything..." autocomplete="off">
             
-            <button id="send-btn" class="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white transition-colors flex-shrink-0 shadow-lg active:scale-95">
+            <button id="send-btn" class="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white transition-colors flex-shrink-0 shadow-lg">
                 <i class="fa-solid fa-paper-plane text-[15px] ml-[-2px]"></i>
             </button>
         </div>
@@ -102,65 +85,75 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // ==========================================
-        // 1. FIREBASE SETUP (With Safe Degradation)
-        // ==========================================
+        // Firebase (Optional)
         let db = null;
         try {
-            const firebaseConfig = {
-                apiKey: "YOUR_FIREBASE_API_KEY",
-                databaseURL: "YOUR_TRUECHAT_DATABASE_URL",
-                projectId: "YOUR_PROJECT_ID"
-            };
-            const app = initializeApp(firebaseConfig);
+            const app = initializeApp({ apiKey: "TEST", databaseURL: "TEST", projectId: "TEST" });
             db = getDatabase(app);
-            console.log("Firebase Connected");
-        } catch (error) {
-            console.warn("Firebase config missing or failed. Chat will still work, but won't save to DB.");
-        }
+        } catch(e) {}
 
-        const ENCRYPTION_KEY = "Loknet_Secure_Key_2026";
-        function encryptData(text) {
-            return CryptoJS.AES.encrypt(text, ENCRYPTION_KEY).toString();
-        }
-
-        // ==========================================
-        // 2. GEMINI API SETUP
-        // ==========================================
-        const GEMINI_API_KEY = "AIzaSyDe0HS5hGITIJ93V2x4fXumDhIfPTRvO9c";
+        // IMPORTANT: Replace this key if it's giving the "trouble connecting" error!
+        const GEMINI_API_KEY = "AQ.Ab8RN6LhsSzosH_erjmH83YE3XO9apzIUufHgMS6XXvwAlcHgQ";
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-        // ==========================================
-        // 3. UI LOGIC
-        // ==========================================
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
+        const fileUpload = document.getElementById('file-upload');
+        const previewContainer = document.getElementById('image-preview-container');
+        const previewImg = document.getElementById('preview-img');
+        
+        let selectedImageBase64 = null;
+        let selectedImageMimeType = null;
 
-        function appendMessage(sender, text) {
+        // Handle Image Selection
+        fileUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                selectedImageBase64 = event.target.result.split(',')[1];
+                selectedImageMimeType = file.type;
+                
+                previewImg.src = event.target.result;
+                document.getElementById('preview-name').innerText = file.name.substring(0, 15) + '...';
+                previewContainer.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('remove-img-btn').addEventListener('click', clearImage);
+
+        function clearImage() {
+            selectedImageBase64 = null;
+            selectedImageMimeType = null;
+            fileUpload.value = '';
+            previewContainer.classList.add('hidden');
+        }
+
+        function appendMessage(sender, text, imgSrc = null) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `flex w-full ${sender === 'user' ? 'justify-end' : 'items-end gap-2'}`;
 
+            let content = '';
+            if (imgSrc) {
+                content += `<img src="data:${selectedImageMimeType};base64,${selectedImageBase64}" class="w-full max-w-[200px] rounded-lg mb-2 object-cover">`;
+            }
+            if (text) content += `<div>${sender === 'bot' ? marked.parse(text) : text}</div>`;
+
             if (sender === 'user') {
-                msgDiv.innerHTML = `
-                    <div class="user-bubble p-3.5 text-[15px] max-w-[85%] shadow-sm">
-                        ${text}
-                    </div>
-                `;
+                msgDiv.innerHTML = `<div class="user-bubble p-3.5 text-[15px] max-w-[85%] shadow-sm">${content}</div>`;
             } else {
-                const parsedText = marked.parse(text);
                 msgDiv.innerHTML = `
                     <div class="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0 mb-1">
                         <i class="fa-solid fa-robot text-blue-400 text-[10px]"></i>
                     </div>
-                    <div class="bot-bubble p-3.5 text-[15px] text-gray-200 max-w-[85%] shadow-sm markdown-content">
-                        ${parsedText}
-                    </div>
+                    <div class="bot-bubble p-3.5 text-[15px] text-gray-200 max-w-[85%] shadow-sm markdown-content">${content}</div>
                 `;
             }
             chatBox.appendChild(msgDiv);
             window.scrollTo(0, document.body.scrollHeight);
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         function showTyping() {
@@ -172,88 +165,74 @@
                 <div class="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0 mb-1">
                     <i class="fa-solid fa-bolt text-gray-400 text-[10px]"></i>
                 </div>
-                <div class="bot-bubble p-4 max-w-[85%] shadow-sm flex items-center h-[46px]">
+                <div class="bot-bubble p-4 shadow-sm h-[46px] flex items-center">
                     <div class="typing-dots"><span></span><span></span><span></span></div>
                 </div>
             `;
             chatBox.appendChild(typingDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            window.scrollTo(0, document.body.scrollHeight);
             return id;
         }
 
         async function fetchLoknetResponse(userText) {
-            if (userText.toLowerCase().trim() === "hey loknet") {
-                return "Hello there! I am Loknet. How can I assist you today?";
-            }
+            let parts = [];
+            
+            // Text Prompt Add chestunnam
+            parts.push({ 
+                text: `You are Loknet, a highly advanced AI. Never say you are Gemini or Google. User: ${userText}` 
+            });
 
-            const systemPrompt = `You are Loknet, a highly advanced AI assistant. Never say you are Gemini or Google. Give brief, natural answers. User query: ${userText}`;
+            // Image unte Image data kooda add chestunnam
+            if (selectedImageBase64) {
+                parts.push({
+                    inline_data: {
+                        mime_type: selectedImageMimeType,
+                        data: selectedImageBase64
+                    }
+                });
+            }
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
+                    body: JSON.stringify({ contents: [{ parts: parts }] })
                 });
 
-                if (!response.ok) throw new Error('API Request Failed');
+                if (!response.ok) {
+                    console.error("API Error Response:", await response.text());
+                    throw new Error('API Request Failed - Check API Key');
+                }
+                
                 const data = await response.json();
                 let aiResponse = data.candidates[0].content.parts[0].text;
                 return aiResponse.replace(/Gemini/gi, 'Loknet').replace(/Google/gi, 'Loknet Labs');
             } catch (error) {
-                return "I'm having trouble connecting to my servers right now. Please try again.";
+                return "Error connecting to servers. Please verify your API Key quota or internet connection.";
             }
         }
 
-        // ==========================================
-        // 4. EVENT HANDLERS (No Reloads!)
-        // ==========================================
         async function handleSend() {
             const text = userInput.value.trim();
-            if (!text) return;
+            if (!text && !selectedImageBase64) return;
 
-            // 1. Show User Text
-            appendMessage('user', text);
+            appendMessage('user', text, selectedImageBase64);
             userInput.value = '';
-
-            // 2. Save to DB (If Firebase works)
-            if (db) {
-                try {
-                    push(ref(db, 'loknet_chats'), {
-                        sender: 'user', message: encryptData(text), timestamp: Date.now()
-                    });
-                } catch(e) {}
-            }
-
-            // 3. Show Loading
+            
             const typingId = showTyping();
+            
+            // Need to save image data before clearing it
+            const currentImgBase64 = selectedImageBase64;
+            clearImage(); 
 
-            // 4. Get Response
             const aiResponse = await fetchLoknetResponse(text);
 
-            // 5. Remove Loading & Show AI Text
             document.getElementById(typingId).remove();
             appendMessage('bot', aiResponse);
-
-            // 6. Save AI Response to DB
-            if (db) {
-                try {
-                    push(ref(db, 'loknet_chats'), {
-                        sender: 'loknet', message: encryptData(aiResponse), timestamp: Date.now()
-                    });
-                } catch(e) {}
-            }
         }
 
-        // Click Send Button
         sendBtn.addEventListener('click', handleSend);
-
-        // Press Enter Key
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Prevents any accidental form-like behavior
-                handleSend();
-            }
-        });
+        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
 
     </script>
 </body>
